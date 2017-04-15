@@ -133,10 +133,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   int i;
   char *p, *c;
 
-  char *line = "10.0.2.11 9090";
-  lpCmdLine = (char *) malloc(strlen(line) + 1);
-  memcpy(lpCmdLine, line, strlen(line) + 1);
-  
   // scan the lpCmdLine string for space-delimited fields, counting
   // them in argc.  This will bork if you have tabs or other white-
   // space characters as separators (spaces only!).
